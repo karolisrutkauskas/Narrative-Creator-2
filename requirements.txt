@@ -1,1 +1,4 @@
 timm
+boto3
+tqdm
+scikit-image

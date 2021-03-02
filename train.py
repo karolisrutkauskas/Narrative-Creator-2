@@ -4,26 +4,35 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.optim as optim
 import torch.nn as nn
-import cv2
+import numpy as np
+
+import dataset
 
 # model_names = timm.list_models(pretrained=True)
 # print(model_names)
 
-model = timm.create_model('vit_base_patch32_384', pretrained=True, )
+model = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+model.to(device)
 
 transform = transforms.Compose(
-    [transforms.Resize(384),
+    [
+     transforms.ToPILImage(),
+     transforms.Resize((384, 384)),
      transforms.ToTensor(),
-     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+     transforms.Lambda(dataset.make_img_rgb),
+     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+     ])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform)
-                                        
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                          shuffle=True, num_workers=2)
+trainset = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
 
-classes = ('plane', 'car', 'bird', 'cat',
-           'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=1,
+                                        shuffle=True, num_workers=2)
+
+# classes = ('plane', 'car', 'bird', 'cat',
+        #    'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
@@ -33,7 +42,11 @@ for epoch in range(2):  # loop over the dataset multiple times
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
+        print(data)
         inputs, labels = data
+        # labels = torch.from_numpy(np.asarray(labels))
+
+        inputs, labels = inputs.to(device), labels[0].to(device)
 
         # print(inputs.shape)
         # zero the parameter gradients
@@ -53,3 +66,6 @@ for epoch in range(2):  # loop over the dataset multiple times
             running_loss = 0.0
 
 print('Finished Training')
+print('Saving model...')
+
+torch.save(model.state_dict(), './data/models/vit32-narr.pth')
