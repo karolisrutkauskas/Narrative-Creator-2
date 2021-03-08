@@ -6,13 +6,17 @@ import torch.optim as optim
 import torch.nn as nn
 import numpy as np
 
+from transformers import BartForConditionalGeneration as BCD, BartTokenizerFast as BTF
+
 import dataset
 
-model = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
+vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
-model.to(device)
+
+bart = BCD.from_pretrained('facebook/bart-base')
+tokenizer = BTF.from_pretrained('facebook/bart-base')
 
 transform = transforms.Compose(
     [
@@ -29,7 +33,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=1,
                                         shuffle=True, num_workers=2)
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(vit.parameters(), lr=5e-5, momentum=0.9)
 
 for epoch in range(2):
 
@@ -37,11 +41,16 @@ for epoch in range(2):
     for i, data in enumerate(trainloader, 0):
         optimizer.zero_grad()
 
-        print(data)
-        inputs, labels = data
+        images, narratives = data
 
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
+        image_features = vit.forward_features(images)
+        tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
+        # print(torch.tensor(tokenized_data['labels']).shape)
+        bart_outputs =  bart(encoder_outputs=image_features, labels=torch.tensor(tokenized_data['labels']))
+        # print(bart_outputs[0])
+
+        # outputs = model.(inputs)
+        loss = bart_outputs[0]
         
         loss.backward()
         optimizer.step()
@@ -55,4 +64,4 @@ for epoch in range(2):
 print('Finished Training')
 print('Saving model...')
 
-torch.save(model.state_dict(), './data/models/vit32-narr.pth')
+torch.save(vit.state_dict(), './data/models/vit32-narr.pth')

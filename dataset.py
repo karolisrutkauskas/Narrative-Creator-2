@@ -16,6 +16,7 @@ class NarrativesDataset(Dataset):
     def __getitem__(self, id):
         img_id, narr = self.data[id]
         image = io.imread(self.root + img_id + '.jpg')
+        
         if self.transform is not None:
             image = self.transform(image)
             # print(image.shape)
