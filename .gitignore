@@ -1,2 +1,4 @@
 /.vscode/
 /data/
+/data_stuff/downloader.py
+/__pycache__/

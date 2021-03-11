@@ -32,6 +32,9 @@ trainset = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=1,
                                         shuffle=True, num_workers=2)
 
+vit = vit.to(device)
+bart = bart.to(device)
+
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(vit.parameters(), lr=5e-5, momentum=0.9)
 
@@ -42,14 +45,13 @@ for epoch in range(2):
         optimizer.zero_grad()
 
         images, narratives = data
+        images = images.to(device)
 
         image_features = vit.forward_features(images)
         tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
-        # print(torch.tensor(tokenized_data['labels']).shape)
-        bart_outputs =  bart(encoder_outputs=image_features, labels=torch.tensor(tokenized_data['labels']))
-        # print(bart_outputs[0])
-
-        # outputs = model.(inputs)
+        labels = torch.tensor(tokenized_data['labels']).to(device)
+        bart_outputs =  bart(encoder_outputs=image_features, labels=labels)
+        
         loss = bart_outputs[0]
         
         loss.backward()
@@ -64,4 +66,4 @@ for epoch in range(2):
 print('Finished Training')
 print('Saving model...')
 
-torch.save(vit.state_dict(), './data/models/vit32-narr.pth')
+torch.save(vit.state_dict(), 'data/vit32-narr.pth')

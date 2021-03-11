@@ -13,8 +13,6 @@ with open(read_file, 'r') as jsonl_file:
         result = json.loads(item)
         list_of_ids.append(mode + '/' + result['image_id'])
 
-print(list_of_ids)
-
 with open('data/file_ids.txt', 'a') as txt_file:
     for line in list_of_ids:
         txt_file.write(line)

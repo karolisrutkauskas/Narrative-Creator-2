@@ -29,7 +29,6 @@ for image_id in image_ids:
 
 with open(out, 'a') as jsonl_file:
     for key in data_pairs:
-        print(data_pairs[key])
         if len(data_pairs[key]) != 0:
             data = {'image_id': key, 'narrative': data_pairs[key]}
             jsonl_file.write(json.dumps(data))
