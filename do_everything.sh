@@ -1,4 +1,7 @@
 # get args
+force_redo=false
+batch_size=1
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --number_of_images)
@@ -33,13 +36,17 @@ while [ $# -gt 0 ]; do
             force_redo=true
             shift 1
             ;;
+        --batch_size)
+            batch_size="${2#*=}"
+            shift 2
+            ;;
         *)
             printf "Invalid arg\n"
             exit 1
     esac
 done
 
-if $force_redo; then
+if [[ $force_redo = true ]]; then
     rm -r data
     rm data_stuff/downloader.py
 fi
@@ -63,4 +70,4 @@ if ! test -f "data/dataset.jsonl"; then
 fi
 
 # train
-python train.py
+python train.py $batch_size

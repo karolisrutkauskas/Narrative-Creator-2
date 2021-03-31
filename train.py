@@ -10,6 +10,10 @@ from transformers import BartForConditionalGeneration as BCD, BartTokenizerFast 
 
 import dataset
 
+import sys
+
+batch_size = int(sys.argv[1])
+
 vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -29,7 +33,7 @@ transform = transforms.Compose(
 
 trainset = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=1,
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                         shuffle=True, num_workers=2)
 
 vit = vit.to(device)
@@ -50,7 +54,10 @@ for epoch in range(2):
         image_features = vit.forward_features(images)
         tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
         labels = torch.tensor(tokenized_data['labels']).to(device)
-        bart_outputs =  bart(encoder_outputs=image_features, labels=labels)
+
+        image_features = torch.unsqueeze(torch.unsqueeze(image_features, 1), 0)
+
+        bart_outputs = bart(encoder_outputs=image_features, labels=labels)
         
         loss = bart_outputs[0]
         
@@ -60,7 +67,7 @@ for epoch in range(2):
         running_loss += loss.item()
         if i % 100 == 99:
             print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 100))
+                (epoch + 1, i + 1, running_loss / 100))
             running_loss = 0.0
 
 print('Finished Training')
