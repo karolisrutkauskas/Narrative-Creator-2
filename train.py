@@ -1,4 +1,5 @@
 import timm
+from timm.utils import CheckpointSaver
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -38,26 +39,31 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
 
 vit = vit.to(device)
 bart = bart.to(device)
+bart.train()
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(vit.parameters(), lr=5e-5, momentum=0.9)
+optimizer = optim.Adam(bart.parameters(), lr=5e-5)
+
+cs = CheckpointSaver(vit, optimizer, checkpoint_dir='data/checkpoints')
 
 for epoch in range(2):
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         optimizer.zero_grad()
-
+        # print(i)
         images, narratives = data
         images = images.to(device)
 
         image_features = vit.forward_features(images)
-        tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
+        tokenized_data = tokenizer.prepare_seq2seq_batch(["","","",""], list(narratives), padding=True, truncation=True).data
         labels = torch.tensor(tokenized_data['labels']).to(device)
 
-        image_features = torch.unsqueeze(torch.unsqueeze(image_features, 1), 0)
+        image_features = torch.unsqueeze(torch.unsqueeze(image_features, 1), 0).to(device)
 
-        bart_outputs = bart(encoder_outputs=image_features, labels=labels)
+        input_ids = torch.tensor(tokenized_data['input_ids'])
+
+        bart_outputs = bart(input_ids, labels=labels)
         
         loss = bart_outputs[0]
         
@@ -73,4 +79,7 @@ for epoch in range(2):
 print('Finished Training')
 print('Saving model...')
 
-torch.save(vit.state_dict(), 'data/vit32-narr.pth')
+# torch.save(vit.state_dict(), 'data/vit32-narr.pth')
+cs.save_checkpoint(1)
+bart.save_pretrained('data/bart')
+# torch.save(bart.state_dict(), 'data/bart.pth')
