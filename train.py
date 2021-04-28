@@ -1,4 +1,5 @@
 import timm
+from timm.utils import CheckpointSaver
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -12,66 +13,69 @@ import dataset
 
 import sys
 
-batch_size = int(sys.argv[1])
+def run_train(batch_size):
+    vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(device)
 
-vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
+    bart = BCD.from_pretrained('facebook/bart-base')
+    tokenizer = BTF.from_pretrained('facebook/bart-base')
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
+    transform = transforms.Compose(
+        [
+        transforms.ToPILImage(),
+        transforms.Resize((384, 384)),
+        transforms.ToTensor(),
+        transforms.Lambda(dataset.make_img_rgb),
+        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        ])
 
-bart = BCD.from_pretrained('facebook/bart-base')
-tokenizer = BTF.from_pretrained('facebook/bart-base')
+    trainset = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
 
-transform = transforms.Compose(
-    [
-     transforms.ToPILImage(),
-     transforms.Resize((384, 384)),
-     transforms.ToTensor(),
-     transforms.Lambda(dataset.make_img_rgb),
-     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
-     ])
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                            shuffle=True, num_workers=2)
 
-trainset = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
+    vit = vit.to(device)
+    bart = bart.to(device)
+    bart.train()
+    
+    optimizer = optim.Adam(list(vit.parameters()) + list(bart.parameters()), lr=3e-5)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                        shuffle=True, num_workers=2)
+    cs = CheckpointSaver(vit, optimizer, checkpoint_dir='data/checkpoints')
 
-vit = vit.to(device)
-bart = bart.to(device)
-bart.train()
+    for epoch in range(2):
 
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(list(vit.parameters()) + list(bart.parameters()), lr=3e-5)
+        running_loss = 0.0
+        for i, data in enumerate(trainloader, 0):
+            optimizer.zero_grad()
+            images, narratives = data
+            images = images.to(device)
 
-for epoch in range(2):
+            image_features = vit.forward_features(images)
+            tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
+            labels = torch.tensor(tokenized_data['labels']).to(device)
 
-    running_loss = 0.0
-    for i, data in enumerate(trainloader, 0):
-        optimizer.zero_grad()
-        # print(i)
-        images, narratives = data
-        images = images.to(device)
+            image_features = torch.unsqueeze(torch.unsqueeze(image_features, 1), 0).to(device)
 
-        image_features = vit.forward_features(images)
-        tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
-        labels = torch.tensor(tokenized_data['labels']).to(device)
+            bart_outputs = bart(encoder_outputs=image_features, labels=labels)
+            
+            loss = bart_outputs[0]
+            
+            loss.backward()
+            optimizer.step()
 
-        image_features = torch.unsqueeze(torch.unsqueeze(image_features, 1), 0).to(device)
+            running_loss += loss.item()
+            if i % 100 == 99:
+                print('[%d, %5d] loss: %.3f' %
+                    (epoch + 1, i + 1, running_loss / 100))
+                running_loss = 0.0
 
-        bart_outputs = bart(encoder_outputs=image_features, labels=labels)
-        
-        loss = bart_outputs[0]
-        
-        loss.backward()
-        optimizer.step()
+    print('Finished Training')
+    print('Saving model...')
 
-        running_loss += loss.item()
-        if i % 100 == 99:
-            print('[%d, %5d] loss: %.3f' %
-                (epoch + 1, i + 1, running_loss / 100))
-            running_loss = 0.0
+    cs.save_checkpoint(1)
+    bart.save_pretrained('data/bart')
 
-print('Finished Training')
-print('Saving model...')
-
-torch.save(vit.state_dict(), 'data/vit32-narr.pth')
+if __name__ == '__main__':
+    batch_size = int(sys.argv[1])
+    run_train(batch_size)
