@@ -40,6 +40,14 @@ while [ $# -gt 0 ]; do
             batch_size="${2#*=}"
             shift 2
             ;;
+        --epochs)
+            epochs="${2#*=}"
+            shift 2
+            ;;
+        --lr)
+            lr="${2#*=}"
+            shift 2
+            ;;
         *)
             printf "Invalid arg\n"
             exit 1
@@ -70,4 +78,4 @@ if ! test -f "data/dataset.jsonl"; then
 fi
 
 # train
-python train.py $batch_size
+python train.py $batch_size $lr $epochs

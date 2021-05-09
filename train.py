@@ -13,7 +13,7 @@ import dataset
 
 import sys
 
-def run_train(batch_size):
+def run_train(batch_size, learn_rate, number_of_epochs):
     vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
@@ -39,13 +39,13 @@ def run_train(batch_size):
     bart = bart.to(device)
     bart.train()
     
-    optimizer = optim.Adam(list(vit.parameters()) + list(bart.parameters()), lr=3e-5)
+    optimizer = optim.Adam(list(vit.parameters()) + list(bart.parameters()), lr=learn_rate)
 
     cs = CheckpointSaver(vit, optimizer, checkpoint_dir='data/checkpoints')
 
-    for epoch in range(2):
-
+    for epoch in range(number_of_epochs):
         running_loss = 0.0
+        number_of_iterations = 0
         for i, data in enumerate(trainloader, 0):
             optimizer.zero_grad()
             images, narratives = data
@@ -65,10 +65,8 @@ def run_train(batch_size):
             optimizer.step()
 
             running_loss += loss.item()
-            if i % 100 == 99:
-                print('[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 100))
-                running_loss = 0.0
+            number_of_iterations += 1
+        print('Epoch {} finished, loss: {}'.format(epoch, running_loss / number_of_iterations))
 
     print('Finished Training')
     print('Saving model...')
@@ -78,4 +76,6 @@ def run_train(batch_size):
 
 if __name__ == '__main__':
     batch_size = int(sys.argv[1])
-    run_train(batch_size)
+    learn_rate = float(sys.argv[2])
+    number_of_epochs = int(sys.argv[3])
+    run_train(batch_size, learn_rate, number_of_epochs)
