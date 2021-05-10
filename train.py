@@ -32,7 +32,9 @@ def run_train(batch_size, learn_rate, number_of_epochs):
 
     data_set = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
 
-    train_set, val_set = torch.utils.data.random_split(dataset=data_set, lengths=[int(len(data_set) * 0.8), int(len(data_set) * 0.2)])
+    train_set_fraction = int(len(data_set) * 0.8)
+
+    train_set, val_set = torch.utils.data.random_split(dataset=data_set, lengths=[train_set_fraction, len(data_set) - train_set_fraction])
 
     print(len(train_set))
     print(len(val_set))
