@@ -1,6 +1,7 @@
 # get args
 force_redo=false
 batch_size=1
+do_eval="False"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -48,6 +49,10 @@ while [ $# -gt 0 ]; do
             lr="${2#*=}"
             shift 2
             ;;
+        --do_eval)
+            do_eval="True"
+            shift 1
+            ;;
         *)
             printf "Invalid arg\n"
             exit 1
@@ -78,4 +83,4 @@ if ! test -f "data/dataset.jsonl"; then
 fi
 
 # train
-python train.py $batch_size $lr $epochs
+python train.py $batch_size $lr $epochs $do_eval

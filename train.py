@@ -13,8 +13,9 @@ import dataset
 
 import sys
 
-def run_train(batch_size, learn_rate, number_of_epochs):
+def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
     vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
+    freeze_vit(vit)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
 
@@ -77,8 +78,10 @@ def run_train(batch_size, learn_rate, number_of_epochs):
             running_loss += loss.item()
             number_of_iterations += 1
         print('Epoch {} finished, loss: {}'.format(epoch, running_loss / number_of_iterations))
-        print('Running eval...')
-        run_eval(vit, bart, valloader, device, tokenizer)
+
+        if do_eval:
+            print('Running eval...')
+            run_eval(vit, bart, valloader, device, tokenizer)
 
     print('Finished Training')
     print('Saving model...')
@@ -116,8 +119,19 @@ def run_eval(vit, bart, eval_loader, device, tokenizer):
     vit.train()
     bart.train()
 
+def freeze_vit(vit):
+    for child in vit.named_children():
+        if child[0] == 'blocks':
+            number_of_blocks = int(len(child[1]) / 2)
+            print(number_of_blocks)
+
+            for i in range(number_of_blocks):
+                for param in child[1][i].parameters():
+                    param.requires_grad = False
+
 if __name__ == '__main__':
     batch_size = int(sys.argv[1])
     learn_rate = float(sys.argv[2])
     number_of_epochs = int(sys.argv[3])
-    run_train(batch_size, learn_rate, number_of_epochs)
+    do_eval = bool(sys.argv[4])
+    run_train(batch_size, learn_rate, number_of_epochs, do_eval)
