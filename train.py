@@ -30,12 +30,20 @@ def run_train(batch_size, learn_rate, number_of_epochs):
         transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
         ])
 
-    trainset = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
+    data_set = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
 
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+    train_set, val_set = torch.utils.data.random_split(dataset=data_set, lengths=[int(len(data_set) * 0.8), int(len(data_set) * 0.2)])
+
+    print(len(train_set))
+    print(len(val_set))
+
+    trainloader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+                                            shuffle=True, num_workers=2)
+    valloader = torch.utils.data.DataLoader(val_set, batch_size=batch_size,
                                             shuffle=True, num_workers=2)
 
     vit = vit.to(device)
+    vit.train()
     bart = bart.to(device)
     bart.train()
     
@@ -67,12 +75,44 @@ def run_train(batch_size, learn_rate, number_of_epochs):
             running_loss += loss.item()
             number_of_iterations += 1
         print('Epoch {} finished, loss: {}'.format(epoch, running_loss / number_of_iterations))
+        print('Running eval...')
+        run_eval(vit, bart, valloader, device, tokenizer)
 
     print('Finished Training')
     print('Saving model...')
 
     cs.save_checkpoint(1)
     bart.save_pretrained('data/bart')
+
+def run_eval(vit, bart, eval_loader, device, tokenizer):
+    vit.eval()
+    bart.eval()
+    
+    running_loss = 0.0
+    number_of_iterations = 0
+
+    with torch.no_grad():
+        for i, data in enumerate(eval_loader, 0):
+            images, narratives = data
+            images = images.to(device)
+
+            image_features = vit.forward_features(images)
+            tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
+            labels = torch.tensor(tokenized_data['labels']).to(device)
+
+            image_features = torch.unsqueeze(torch.unsqueeze(image_features, 1), 0).to(device)
+
+            bart_outputs = bart(encoder_outputs=image_features, labels=labels)
+            
+            loss = bart_outputs[0]
+
+            running_loss += loss.item()
+            number_of_iterations += 1
+    
+    print('Eval finished, loss: {}'.format(running_loss / number_of_iterations))
+
+    vit.train()
+    bart.train()
 
 if __name__ == '__main__':
     batch_size = int(sys.argv[1])
