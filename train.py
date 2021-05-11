@@ -20,6 +20,7 @@ def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
     print(device)
 
     bart = BCD.from_pretrained('facebook/bart-base')
+    freeze_bart(bart)
     tokenizer = BTF.from_pretrained('facebook/bart-base')
 
     transform = transforms.Compose(
@@ -82,7 +83,7 @@ def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
         if do_eval:
             print('Running eval...')
             run_eval(vit, bart, valloader, device, tokenizer)
-
+            
     print('Finished Training')
     print('Saving model...')
 
@@ -126,6 +127,18 @@ def freeze_vit(vit):
             print(number_of_blocks)
 
             for i in range(number_of_blocks):
+                for param in child[1][i].parameters():
+                    param.requires_grad = False
+
+def freeze_bart(bart):
+    for child in bart.get_decoder().named_children():
+        if child[0] == 'layers':
+            number_of_blocks = int(len(child[1]) / 2)
+
+            print(number_of_blocks)
+
+            for i in range(number_of_blocks, len(child[1])):
+                print(child[1][i])
                 for param in child[1][i].parameters():
                     param.requires_grad = False
 
