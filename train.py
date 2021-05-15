@@ -105,6 +105,12 @@ def run_eval(vit, feature_extractor, bart, eval_loader, device, tokenizer):
         for i, data in enumerate(eval_loader, 0):
             images, narratives = data
             images = to_list(images)
+            
+            for i, image in enumerate(images):
+                if len(image.shape) == 2:
+                    image = np.expand_dims(image, axis=2)
+                    image = np.repeat(image, 3, 2)
+                    images[i] = image
 
             inputs = feature_extractor(images=images, return_tensors="pt").to(device)
             image_features = vit(**inputs).last_hidden_state
