@@ -3,3 +3,4 @@ boto3==1.17.17
 tqdm==4.58.0
 scikit-image==0.18.1
 transformers==4.5.1
+imageio
