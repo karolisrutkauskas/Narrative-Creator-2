@@ -63,8 +63,6 @@ def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
             images, narratives = data
             images = images.to(device)
 
-            print(images.shape)
-
             image_features = vit.forward_features(images)
             tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
             labels = torch.tensor(tokenized_data['labels']).to(device)
