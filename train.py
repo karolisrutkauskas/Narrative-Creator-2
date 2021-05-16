@@ -1,8 +1,8 @@
 import torch
-import torch.optim as optim
 import torchvision.transforms as transforms
+import torch.optim as optim
+import torch.nn as nn
 import numpy as np
-import imageio
 
 from transformers import BartForConditionalGeneration as BCD, BartTokenizerFast as BTF, ViTModel, ViTFeatureExtractor
 
@@ -11,6 +11,7 @@ import dataset
 import sys
 
 def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
+    # vit = timm.create_model('vit_base_patch32_384', pretrained=True, num_classes=0)
     feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-384')
     vit = ViTModel.from_pretrained('google/vit-base-patch16-384')
     # freeze_vit(vit)
@@ -27,7 +28,7 @@ def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
         transforms.Resize((384, 384)),
         transforms.ToTensor(),
         transforms.Lambda(dataset.make_img_rgb),
-        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
         ])
 
     data_set = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
@@ -57,15 +58,10 @@ def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
         for i, data in enumerate(trainloader, 0):
             optimizer.zero_grad()
             images, narratives = data
+            images = images.to(device)
             images = to_list(images)
 
-            for i, image in enumerate(images):
-                if len(image.shape) == 2:
-                    image = np.expand_dims(image, axis=2)
-                    image = np.repeat(image, 3, 2)
-                    images[i] = image
-
-            inputs = feature_extractor(images=images, return_tensors="pt").to(device)
+            inputs = feature_extractor(images=images, return_tensors="pt")
             image_features = vit(**inputs).last_hidden_state
 
             tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
@@ -104,15 +100,10 @@ def run_eval(vit, feature_extractor, bart, eval_loader, device, tokenizer):
     with torch.no_grad():
         for i, data in enumerate(eval_loader, 0):
             images, narratives = data
+            images = images.to(device)
             images = to_list(images)
-            
-            for i, image in enumerate(images):
-                if len(image.shape) == 2:
-                    image = np.expand_dims(image, axis=2)
-                    image = np.repeat(image, 3, 2)
-                    images[i] = image
 
-            inputs = feature_extractor(images=images, return_tensors="pt").to(device)
+            inputs = feature_extractor(images=images, return_tensors="pt")
             image_features = vit(**inputs).last_hidden_state
             tokenized_data = tokenizer.prepare_seq2seq_batch("", list(narratives), padding=True, truncation=True).data
             labels = torch.tensor(tokenized_data['labels']).to(device)
@@ -151,9 +142,8 @@ def freeze_bart(bart):
 
 def to_list(array):
     image_list = []
-    for image_id in array:
-        image = imageio.imread('data/images/' + image_id + '.jpg')
-        image_list.insert(0, image)
+    for i in range(array.shape[0]):
+        image_list.insert(i, array[i])
 
     return image_list
 

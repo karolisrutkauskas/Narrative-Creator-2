@@ -15,17 +15,17 @@ class NarrativesDataset(Dataset):
 
     def __getitem__(self, id):
         img_id, narr = self.data[id]
-        # image = io.imread(self.root + img_id + '.jpg')
+        image = io.imread(self.root + img_id + '.jpg')
         
-        # if self.transform is not None:
-        #     image = self.transform(image)
+        if self.transform is not None:
+            image = self.transform(image)
             # print(image.shape)
             # print(image)
             # image = image.convert("RGB")'
 
         # narr = torch.Tensor(narr).int()
 
-        return img_id, narr
+        return image, narr
 
 
 def read_data(file):
