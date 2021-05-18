@@ -32,11 +32,8 @@ def run_train(batch_size, learn_rate, number_of_epochs, do_eval):
         transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
         ])
 
-    data_set = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
-
-    train_set_fraction = int(len(data_set) * 0.8)
-
-    train_set, val_set = torch.utils.data.random_split(dataset=data_set, lengths=[train_set_fraction, len(data_set) - train_set_fraction])
+    train_set = dataset.NarrativesDataset(root='./data/images/', file='./data/dataset.jsonl', transform=transform)
+    val_set = dataset.NarrativesDataset(root='./data/images_val/', file='./data/dataset_val.jsonl', transform=transform)
 
     print(len(train_set))
     print(len(val_set))
