@@ -3,8 +3,9 @@ import json
 
 files_from = int(sys.argv[1])
 files_to = int(sys.argv[2])
-read_file = sys.argv[3]
-mode = sys.argv[4]
+out_dir = sys.argv[3]
+read_file = sys.argv[4]
+mode = sys.argv[5]
 
 list_of_ids = []
 with open(read_file, 'r') as jsonl_file:
@@ -13,7 +14,7 @@ with open(read_file, 'r') as jsonl_file:
         result = json.loads(item)
         list_of_ids.append(mode + '/' + result['image_id'])
 
-with open('data/file_ids.txt', 'a') as txt_file:
+with open(out_dir, 'a') as txt_file:
     for line in list_of_ids:
         txt_file.write(line)
         txt_file.write('\n')
