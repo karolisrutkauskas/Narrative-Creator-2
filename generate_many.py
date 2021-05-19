@@ -90,6 +90,8 @@ def run_generation(dataset_file):
 
         batch = tokenizer.prepare_seq2seq_batch([""], return_tensors="pt")
 
+        image_features = image_features.repeat(1, 4, 1, 1)
+
         bart_outputs = model.generate(**batch, encoder_output=image_features, max_length=128)
 
         narrative = tokenizer.batch_decode(bart_outputs, skip_special_tokens=True)
