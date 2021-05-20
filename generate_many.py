@@ -46,7 +46,6 @@ def _prepare_encoder_decoder_kwargs_for_generation(
     encoder_kwargs = {
         argument: value for argument, value in model_kwargs.items() if not argument.startswith("decoder_") and argument != "encoder_output"
     }
-    print(encoder_kwargs.keys())
     model_kwargs["encoder_outputs"]: ModelOutput = encoder(input_ids, return_dict=True, **encoder_kwargs)
     return model_kwargs
 
@@ -58,8 +57,9 @@ def run_generation(dataset_file):
     model.prepare_inputs_for_generation = MethodType(prepare_inputs_for_generation, model)
     model._prepare_encoder_decoder_kwargs_for_generation = MethodType(_prepare_encoder_decoder_kwargs_for_generation, model)
 
-    vit = timm.create_model('vit_base_patch32_384').to(device)
+    vit = timm.create_model('vit_base_patch32_384')
     timm.models.helpers.load_checkpoint(vit, 'data/checkpoints/last.pth.tar', strict=False)
+    vit = vit.to(device)
 
     transform = transforms.Compose(
         [
@@ -89,10 +89,11 @@ def run_generation(dataset_file):
         tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-base')
 
         batch = tokenizer.prepare_seq2seq_batch([""], return_tensors="pt")
+        batch.data['input_ids'] = batch.data['input_ids'].to(device)
 
         image_features = image_features.repeat(1, 4, 1, 1)
 
-        bart_outputs = model.generate(**batch, encoder_output=image_features, max_length=128)
+        bart_outputs = model.generate(batch.data['input_ids'], encoder_output=image_features, max_length=128)
 
         narrative = tokenizer.batch_decode(bart_outputs, skip_special_tokens=True)
 
